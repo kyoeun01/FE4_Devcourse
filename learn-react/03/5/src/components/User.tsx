@@ -23,5 +23,5 @@ export default function User({ name, age }: { name: string; age: number }) {
   );
 }
 
-// 자바스크립트 구조분해할당 복습..
+// 자바스크립트 구조분해할당 복습
 // 보통 실무에서 사용 -> props 반복이 안되니까
