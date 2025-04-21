@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CPU vs GPU 성능 비교</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #f0f0f0;
+      }
+      .container {
+        display: flex;
+        height: 100vh;
+      }
+      .section {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      .separator {
+        width: 4px;
+        background: #333;
+      }
+      .box {
+        position: absolute;
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      }
+      .gpu-box {
+        will-change: transform;
+      }
+      .panel,
+      .fps-counter {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 10;
+      }
+      .panel {
+        top: 10px;
+        left: 10px;
+      }
+      .fps-counter {
+        top: 10px;
+        right: 10px;
+      }
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 10;
+      }
+      button {
+        margin: 0 5px;
+        padding: 8px 16px;
+        background: #4caf50;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="cpu-section" class="section">
+        <div class="panel">CPU 렌더링</div>
+        <div id="cpu-fps" class="fps-counter">0 FPS</div>
+      </div>
+      <div class="separator"></div>
+      <div id="gpu-section" class="section">
+        <div class="panel">GPU 가속 렌더링</div>
+        <div id="gpu-fps" class="fps-counter">0 FPS</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="box-100">100개</button>
+      <button id="box-500">500개</button>
+      <button id="box-1000">1000개</button>
+      <button id="complexity-low">낮은 복잡도</button>
+      <button id="complexity-high">높은 복잡도</button>
+      <button id="reset">리셋</button>
+    </div>
+
+    <script>
+      // —— 전역 변수 ——
+      let cpuBoxes = [],
+        gpuBoxes = [];
+      let cpuPos = [],
+        gpuPos = [];
+      let velocity = [],
+        sizeArr = [],
+        colorArr = [];
+      let boxCount = 100,
+        complexity = "low";
+
+      // 섹션 크기 (init 또는 resize 시에만 갱신)
+      let cpuW, cpuH, gpuW, gpuH;
+
+      // FPS 측정 변수
+      let cpuLast = 0,
+        gpuLast = 0,
+        cpuFrames = 0,
+        gpuFrames = 0;
+
+      const cpuSection = document.getElementById("cpu-section");
+      const gpuSection = document.getElementById("gpu-section");
+      const cpuFps = document.getElementById("cpu-fps");
+      const gpuFps = document.getElementById("gpu-fps");
+
+      function getRandomColor() {
+        return (
+          "#" +
+          [...Array(6)]
+            .map((_) => "0123456789ABCDEF"[(Math.random() * 16) | 0])
+            .join("")
+        );
+      }
+      function getRandom(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function initializeBoxes() {
+        // 기존 박스 제거
+        cpuBoxes.forEach((b) => b.remove());
+        gpuBoxes.forEach((b) => b.remove());
+
+        (cpuBoxes = []), (gpuBoxes = []);
+        (cpuPos = []), (gpuPos = []);
+        (velocity = []), (sizeArr = []), (colorArr = []);
+
+        // 섹션 크기 한 번만 읽기
+        cpuW = cpuSection.offsetWidth;
+        cpuH = cpuSection.offsetHeight;
+        gpuW = gpuSection.offsetWidth;
+        gpuH = gpuSection.offsetHeight;
+
+        for (let i = 0; i < boxCount; i++) {
+          const sz = Math.floor(getRandom(10, 30));
+          const x = getRandom(0, cpuW - sz);
+          const y = getRandom(0, cpuH - sz);
+          const dx = getRandom(-3, 3),
+            dy = getRandom(-3, 3);
+          const col = getRandomColor();
+
+          sizeArr.push(sz);
+          velocity.push({ dx, dy });
+          colorArr.push(col);
+          cpuPos.push({ x, y });
+          gpuPos.push({ x, y });
+
+          // CPU 박스
+          const c = document.createElement("div");
+          c.className = "box cpu-box";
+          Object.assign(c.style, {
+            width: sz + "px",
+            height: sz + "px",
+            left: x + "px",
+            top: y + "px",
+            backgroundColor: col,
+          });
+          cpuSection.appendChild(c);
+          cpuBoxes.push(c);
+
+          // GPU 박스
+          const g = document.createElement("div");
+          g.className = "box gpu-box";
+          Object.assign(g.style, {
+            width: sz + "px",
+            height: sz + "px",
+            backgroundColor: col,
+            transform: `translate3d(${x}px,${y}px,0)`,
+          });
+          gpuSection.appendChild(g);
+          gpuBoxes.push(g);
+        }
+      }
+
+      function animateCPU(ts) {
+        if (!cpuLast) cpuLast = ts;
+        cpuFrames++;
+        if (ts - cpuLast >= 1000) {
+          cpuFps.textContent = cpuFrames + " FPS";
+          cpuFrames = 0;
+          cpuLast = ts;
+        }
+
+        // 위치 계산 & 스타일 변경
+        for (let i = 0; i < boxCount; i++) {
+          let p = cpuPos[i],
+            v = velocity[i],
+            sz = sizeArr[i];
+          p.x += v.dx;
+          p.y += v.dy;
+
+          // 바운스
+          if (p.x < 0 || p.x + sz > cpuW) {
+            v.dx *= -1;
+            p.x = Math.max(0, Math.min(p.x, cpuW - sz));
+          }
+          if (p.y < 0 || p.y + sz > cpuH) {
+            v.dy *= -1;
+            p.y = Math.max(0, Math.min(p.y, cpuH - sz));
+          }
+
+          if (complexity === "high") performHeavyCalc(i);
+
+          // **CPU 방식**: left/top → layout + paint
+          cpuBoxes[i].style.left = p.x + "px";
+          cpuBoxes[i].style.top = p.y + "px";
+        }
+        requestAnimationFrame(animateCPU);
+      }
+
+      function animateGPU(ts) {
+        if (!gpuLast) gpuLast = ts;
+        gpuFrames++;
+        if (ts - gpuLast >= 1000) {
+          gpuFps.textContent = gpuFrames + " FPS";
+          gpuFrames = 0;
+          gpuLast = ts;
+        }
+
+        for (let i = 0; i < boxCount; i++) {
+          let p = gpuPos[i],
+            v = velocity[i],
+            sz = sizeArr[i];
+          p.x += v.dx;
+          p.y += v.dy;
+
+          if (p.x < 0 || p.x + sz > gpuW) {
+            v.dx *= -1;
+            p.x = Math.max(0, Math.min(p.x, gpuW - sz));
+          }
+          if (p.y < 0 || p.y + sz > gpuH) {
+            v.dy *= -1;
+            p.y = Math.max(0, Math.min(p.y, gpuH - sz));
+          }
+
+          if (complexity === "high") performHeavyCalc(i);
+
+          // **GPU 방식**: transform → composite 만 수행
+          gpuBoxes[i].style.transform = `translate3d(${p.x}px,${p.y}px,0)`;
+        }
+        requestAnimationFrame(animateGPU);
+      }
+
+      function performHeavyCalc(i) {
+        let acc = 0;
+        for (let j = 0; j < 2000; j++) {
+          acc += Math.sin(velocity[i].dx * j) * Math.cos(velocity[i].dy * j);
+          acc = Math.sqrt(acc * acc + j);
+        }
+        return acc;
+      }
+
+      // 이벤트 연결
+      document.getElementById("box-100").onclick = () => {
+        boxCount = 100;
+        initializeBoxes();
+      };
+      document.getElementById("box-500").onclick = () => {
+        boxCount = 500;
+        initializeBoxes();
+      };
+      document.getElementById("box-1000").onclick = () => {
+        boxCount = 1000;
+        initializeBoxes();
+      };
+      document.getElementById("complexity-low").onclick = () => {
+        complexity = "low";
+      };
+      document.getElementById("complexity-high").onclick = () => {
+        complexity = "high";
+      };
+      document.getElementById("reset").onclick = () => {
+        initializeBoxes();
+      };
+
+      window.addEventListener("load", () => {
+        initializeBoxes();
+        requestAnimationFrame(animateCPU);
+        requestAnimationFrame(animateGPU);
+      });
+      window.addEventListener("resize", initializeBoxes);
+    </script>
+  </body>
+</html>

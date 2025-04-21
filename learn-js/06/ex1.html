@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <button onclick="load()">load</button>
+    <button onclick="load2()">load2</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr">
+      <div id="list"></div>
+      <div id="list2"></div>
+    </div>
+
+    <script>
+      function load() {
+        console.time("load");
+        const list = document.getElementById("list");
+        const fragment = document.createDocumentFragment(); // 메모리 상에 존재
+        const items = [];
+
+        for (let i = 0; i < 90000; i++) {
+          const item = document.createElement("li");
+          item.textContent = `Item ${i}`;
+          fragment.append(item); // fragment(가상객체)메모리에 저장 -> 넣어주기만 하는 중
+          // items.push(item);
+        }
+
+        // 생성된 요소들을 한 번에 DOM에 추가
+        // list.append(...items); // 1회
+        list.appendChild(fragment); // 1회만 발생시킴 -> 성능 최적화
+
+        // DOM 추가 후 완료 시간을 측정
+        setTimeout(() => {
+          console.timeEnd("load");
+        }, 0); // 렌더링이 완료된 후 시간을 측정하기 위해 0ms 지연
+      }
+
+      function load2() {
+        console.time("load2");
+        const list = document.getElementById("list2");
+        const items = [];
+
+        for (let i = 0; i < 90000; i++) {
+          const item = document.createElement("li");
+          item.textContent = `Item ${i}`;
+          list.appendChild(item); // 리스트에 직접 추가, 9만번의 리플로우와 리페인트를 요구하는 코드
+        }
+
+        // DOM 추가 후 완료 시간을 측정
+        setTimeout(() => {
+          console.timeEnd("load2");
+        }, 0); // 렌더링이 완료된 후 시간을 측정하기 위해 0ms 지연
+      }
+    </script>
+  </body>
+</html>
+<!-- 레이아웃을 다시 그리는 리플로우와 리페인팅을 최소화 하는 것 
+ 
+
+-->
