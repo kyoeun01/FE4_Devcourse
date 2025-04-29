@@ -1,0 +1,44 @@
+{
+  "posts": [
+    {
+      "title": "change data",
+      "views": 500,
+      "id": "1"
+    },
+    {
+      "id": "2",
+      "title": "another title",
+      "views": 200
+    },
+    {
+      "id": "4U2KMEu"
+    },
+    {
+      "id": "fmaKtyP"
+    },
+    {
+      "id": "bRlFoND"
+    },
+    {
+      "id": "EuRGUnP"
+    },
+    {
+      "id": "_R0-3WY"
+    }
+  ],
+  "comments": [
+    {
+      "id": "1",
+      "text": "a comment about post 1",
+      "postId": "1"
+    },
+    {
+      "id": "2",
+      "text": "another comment about post 1",
+      "postId": "1"
+    }
+  ],
+  "profile": {
+    "name": "typicode"
+  }
+}
